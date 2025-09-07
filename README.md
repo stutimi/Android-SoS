@@ -2,7 +2,7 @@
 
 A comprehensive Android safety application designed to provide immediate emergency assistance and location tracking for women's safety. The app features one-tap SOS alerts, real-time location sharing, and community-based safety features.
 
-## 📱 Features
+## 📱  "Features"
 
 ### Core Safety Features
 - **One-Tap SOS Button** - Instantly send emergency alerts with live location to trusted contacts
