@@ -1,0 +1,122 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    
+    // Users collection - users can only read/write their own data
+    match /users/{userId} {
+      allow read, write: if request.auth != null && request.auth.uid == userId;
+      
+      // Allow reading basic user info for emergency contacts
+      allow read: if request.auth != null && 
+        resource.data.keys().hasAny(['name', 'phone', 'isActive']);
+    }
+    
+    // SOS Events collection
+    match /sos_events/{eventId} {
+      // Users can create SOS events
+      allow create: if request.auth != null && 
+        request.auth.uid == request.resource.data.userId;
+      
+      // Users can read their own SOS events
+      allow read: if request.auth != null && 
+        request.auth.uid == resource.data.userId;
+      
+      // Emergency contacts can read SOS events they're associated with
+      allow read: if request.auth != null && 
+        request.auth.uid in resource.data.get('notifiedContacts', []);
+      
+      // Users can update their own SOS events (for status changes)
+      allow update: if request.auth != null && 
+        request.auth.uid == resource.data.userId &&
+        // Only allow updating specific fields
+        request.resource.data.diff(resource.data).affectedKeys()
+          .hasOnly(['status', 'resolvedAt', 'notes']);
+    }
+    
+    // Community Alerts collection
+    match /community_alerts/{alertId} {
+      // Authenticated users can read community alerts in their area
+      allow read: if request.auth != null;
+      
+      // Users can create community alerts
+      allow create: if request.auth != null && 
+        request.auth.uid == request.resource.data.createdBy;
+      
+      // Alert creators can update their own alerts
+      allow update: if request.auth != null && 
+        request.auth.uid == resource.data.createdBy &&
+        // Only allow updating specific fields
+        request.resource.data.diff(resource.data).affectedKeys()
+          .hasOnly(['status', 'resolvedAt', 'notes', 'severity']);
+    }
+    
+    // Emergency Contacts collection (subcollection of users)
+    match /users/{userId}/emergency_contacts/{contactId} {
+      allow read, write: if request.auth != null && request.auth.uid == userId;
+    }
+    
+    // Location History collection
+    match /location_history/{locationId} {
+      // Users can create location entries
+      allow create: if request.auth != null && 
+        request.auth.uid == request.resource.data.userId;
+      
+      // Users can read their own location history
+      allow read: if request.auth != null && 
+        request.auth.uid == resource.data.userId;
+      
+      // Emergency contacts can read location during active SOS
+      allow read: if request.auth != null && 
+        exists(/databases/$(database)/documents/sos_events/$(resource.data.sosEventId)) &&
+        request.auth.uid in get(/databases/$(database)/documents/sos_events/$(resource.data.sosEventId)).data.notifiedContacts;
+    }
+    
+    // Safety Tips collection (read-only for users)
+    match /safety_tips/{tipId} {
+      allow read: if request.auth != null;
+    }
+    
+    // App Settings collection (admin only)
+    match /app_settings/{settingId} {
+      allow read: if request.auth != null;
+      // Write access would be restricted to admin users in a real app
+    }
+    
+    // User Reports collection
+    match /user_reports/{reportId} {
+      // Users can create reports
+      allow create: if request.auth != null && 
+        request.auth.uid == request.resource.data.reportedBy;
+      
+      // Users can read their own reports
+      allow read: if request.auth != null && 
+        request.auth.uid == resource.data.reportedBy;
+    }
+    
+    // FCM Tokens collection (for push notifications)
+    match /fcm_tokens/{tokenId} {
+      allow read, write: if request.auth != null && 
+        request.auth.uid == resource.data.userId;
+    }
+    
+    // Helper functions
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+    
+    function isOwner(userId) {
+      return request.auth.uid == userId;
+    }
+    
+    function isValidSosEvent() {
+      return request.resource.data.keys().hasAll(['userId', 'timestamp', 'location', 'type']) &&
+        request.resource.data.userId == request.auth.uid;
+    }
+    
+    function isValidUser() {
+      return request.resource.data.keys().hasAll(['name', 'email', 'phone', 'createdAt']) &&
+        request.resource.data.uid == request.auth.uid;
+    }
+  }
+}

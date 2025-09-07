@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="utf-8"?>
+<menu xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto">
+
+    <item
+        android:id="@+id/action_test_firebase"
+        android:title="🔥 Test Firebase"
+        android:icon="@drawable/ic_security"
+        app:showAsAction="never" />
+
+
+    <item
+        android:id="@+id/action_maps"
+        android:title="🗺️ Maps"
+        android:icon="@drawable/ic_location"
+        app:showAsAction="never" />
+
+    <item
+        android:id="@+id/action_test_maps"
+        android:title="🧪 Test Maps"
+        android:icon="@drawable/ic_location"
+        app:showAsAction="never" />
+
+</menu>
