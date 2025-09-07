@@ -18,6 +18,7 @@
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
     <uses-permission android:name="android.permission.BLUETOOTH" />
     <uses-permission android:name="android.permission.BLUETOOTH_ADMIN" />
+    <uses-feature android:name="android.hardware.telephony" android:required="false" />
 
     <application
         android:name=".SosApplication"
@@ -60,7 +61,7 @@
 
         <!-- Auth Activity -->
         <activity
-            android:name=".ui.AuthActivity"
+            android:name=".ui.auth.AuthActivity"
             android:exported="false"
             android:theme="@style/Theme.WomenSafety" />
 
@@ -82,19 +83,7 @@
             android:exported="false"
             android:theme="@style/Theme.WomenSafety" />
 
-        <!-- SOS Service -->
-        <service
-            android:name=".service.SosService"
-            android:enabled="true"
-            android:exported="false"
-            android:foregroundServiceType="location" />
 
-        <!-- Location Tracking Service -->
-        <service
-            android:name=".service.LocationTrackingService"
-            android:enabled="true"
-            android:exported="false"
-            android:foregroundServiceType="location" />
 
         <!-- Firebase Messaging Service -->
         <service
@@ -105,24 +94,7 @@
             </intent-filter>
         </service>
 
-        <!-- Boot Receiver -->
-        <receiver
-            android:name=".receiver.BootReceiver"
-            android:enabled="true"
-            android:exported="true">
-            <intent-filter android:priority="1000">
-                <action android:name="android.intent.action.BOOT_COMPLETED" />
-                <action android:name="android.intent.action.MY_PACKAGE_REPLACED" />
-                <action android:name="android.intent.action.PACKAGE_REPLACED" />
-                <data android:scheme="package" />
-            </intent-filter>
-        </receiver>
 
-        <!-- Shake Detector Receiver -->
-        <receiver
-            android:name=".receiver.ShakeReceiver"
-            android:enabled="true"
-            android:exported="false" />
 
     </application>
 

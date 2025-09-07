@@ -1,6 +1,4 @@
-# Byterover Handbook: Smart SOS - Women Safety App
-
-This handbook provides a comprehensive overview of the Smart SOS application, its architecture, and its modules.
+# Byterover Handbook
 
 ## Layer 1: System Overview
 
@@ -10,76 +8,85 @@ A comprehensive Android safety application designed to provide immediate emergen
 
 ### 1.2. Tech Stack
 
-- **Language:** Kotlin
-- **Architecture:** MVVM with LiveData and ViewModel
-- **UI:** View Binding, Android Navigation Component, Material Design
-- **Database:** Room
-- **Background Processing:** WorkManager
-- **Networking:** Retrofit, OkHttp, Gson
-- **Image Loading:** Glide
-- **Firebase:** Authentication, Firestore, Cloud Messaging, Analytics
-- **Location & Maps:** Google Play Services Location, Google Play Services Maps
-- **Permissions:** Dexter
+-   **Language**: Kotlin
+-   **Architecture**: MVVM (Model-View-ViewModel) with LiveData and ViewModel
+-   **Core Android**: AndroidX, Activity, Fragment, Lifecycle, Navigation
+-   **Database**: Room
+-   **Networking**: Retrofit, OkHttp, Gson
+-   **UI**: Material Design Components, View Binding, Glide
+-   **Firebase**: Authentication, Firestore, Cloud Messaging, Analytics
+-   **Google Play Services**: Location, Maps
+-   **Permissions**: Dexter
+-   **Background Processing**: WorkManager
 
 ### 1.3. Architecture
 
-The application follows the Model-View-ViewModel (MVVM) architecture pattern.
+The application follows the MVVM (Model-View-ViewModel) architecture pattern.
 
-- **Model:** Represents the data and business logic. This includes Room database entities, repositories, and data sources.
-- **View:** Represents the UI of the application. This includes Activities and Fragments.
-- **ViewModel:** Acts as a bridge between the Model and the View. It holds the UI-related data and exposes it to the View through LiveData.
+-   **Model**: Represents the data and business logic. This includes Room database entities, DAOs, and repositories.
+-   **View**: The UI of the application, composed of Activities and Fragments. They observe ViewModels for data changes.
+-   **ViewModel**: Acts as a bridge between the Model and the View. It holds and processes UI-related data and exposes it to the View via LiveData.
 
-The app is structured into several packages, including `ui`, `service`, `data`, and `utils`. The `ui` package contains the presentation layer, the `service` package contains background services, the `data` package contains the data layer, and the `utils` package contains utility classes.
+The project is structured into several packages:
+
+-   `data`: Contains models, DAOs, repositories, and Firebase-related classes.
+-   `ui`: Contains Activities, Fragments, and ViewModels for different screens.
+-   `service`: Contains background services for location tracking and push notifications.
+-   `utils`: Contains helper classes and constants.
 
 ## Layer 2: Module Map
 
 ### 2.1. Core Modules
 
-- **Authentication:** Handles user sign-up, sign-in, and session management.
-  - `AuthActivity.kt`: The main entry point for the authentication flow.
-  - `AuthViewModel.kt`: The ViewModel for the authentication screen.
-- **Home:** The main screen with the SOS button and shake detection.
-  - `HomeFragment.kt`: The UI for the home screen.
-  - `HomeViewModel.kt`: The ViewModel for the home screen.
-- **Contacts:** Manages emergency contacts.
-  - `ContactsFragment.kt`: The UI for managing contacts.
-  - `ContactsViewModel.kt`: The ViewModel for the contacts screen.
-  - `AddContactDialogFragment.kt`: A dialog for adding new contacts.
-- **Tracking:** Real-time location sharing and route monitoring.
-  - `TrackingFragment.kt`: The UI for the tracking screen.
-- **Settings:** Application settings and user preferences.
-  - `SettingsFragment.kt`: The UI for the settings screen.
-- **SOS Service:** The background service responsible for sending emergency alerts.
-  - `SosFirebaseMessagingService.kt`: Handles incoming push notifications.
-- **Location Service:** The background service for location tracking.
-  - `LocationRepository.kt`: The repository for location data.
+-   **`auth`**: Manages user authentication (anonymous sign-in) using Firebase Authentication.
+-   **`contacts`**: Manages emergency contacts, allowing users to add, view, and delete them. The data is stored locally using Room.
+-   **`home`**: The main screen with the SOS button. It handles the SOS trigger and initiates the alert process.
+-   **`maps`**: Displays the user's location and the location of trusted contacts on a map.
+-   **`tracking`**: Manages real-time location sharing with trusted contacts.
+-   **`settings`**: Provides options to configure the app's settings.
+
+### 2.2. Data Layer
+
+-   **`ContactRepository`**: Manages contact-related data operations, interacting with the `ContactDao`.
+-   **`LocationRepository`**: Manages location data.
+-   **`SosRepository`**: Manages SOS-related data and events.
+-   **`FirebaseRepository`**: Handles interactions with Firebase services like Firestore.
+-   **`SosDatabase`**: The Room database that stores contacts and other local data.
+
+### 2.3. Service Layer
+
+-   **`SosFirebaseMessagingService`**: Handles incoming push notifications from Firebase Cloud Messaging.
+-   **`PushNotificationTester`**: A utility to test push notifications.
 
 ## Layer 3: Integration Guide
 
-### 3.1. Firebase Integration
+### 3.1. APIs and Endpoints
 
-The application is tightly integrated with Firebase for various backend services:
+The application does not expose any of its own APIs. It communicates with external services:
 
-- **Firebase Authentication:** Used for user authentication and management.
-- **Firebase Firestore:** Used as the real-time database for storing user data, contacts, and SOS events.
-- **Firebase Cloud Messaging:** Used for sending and receiving push notifications, which are crucial for the SOS feature.
+-   **Firebase**:
+    -   Authentication for user management.
+    -   Firestore for real-time data storage.
+    -   Cloud Messaging for push notifications.
+-   **Google Maps API**:
+    -   Used to display maps and user locations. The API key is configured in `local.properties`.
 
-The Firebase configuration is stored in the `app/google-services.json` file.
+### 3.2. Configuration
 
-### 3.2. Google Maps Integration
-
-The application uses the Google Maps SDK for displaying maps and the Google Play Services Location API for location tracking. The Google Maps API key is configured in the `app/build.gradle.kts` file.
+-   **`google-services.json`**: Firebase project configuration file.
+-   **`local.properties`**: Contains the `MAPS_API_KEY`.
+-   **`build.gradle.kts`**: Contains build configurations, dependencies, and other project settings.
 
 ## Layer 4: Extension Points
 
 ### 4.1. Design Patterns
 
-- **Repository Pattern:** The application uses the repository pattern to abstract the data sources. This allows for easy swapping of data sources without affecting the rest of the application.
-- **Dependency Injection:** The app follows the principle of dependency injection by passing dependencies through constructors. This makes the code more modular and testable.
-- **ViewModel and LiveData:** The use of ViewModel and LiveData allows for a clean separation of concerns and makes the UI more resilient to configuration changes.
+-   **MVVM**: As described in the architecture section.
+-   **Repository Pattern**: Used to abstract data sources.
+-   **Singleton**: The `SosDatabase` is implemented as a singleton.
 
-### 4.2. Customization Areas
+### 4.2. Customization
 
-- **Room Database:** The local database can be extended by adding new entities and DAOs in the `com.xenonesis.womensafety.data` package.
-- **WorkManager:** New background tasks can be added by creating new Worker classes and enqueueing them with the WorkManager.
-- **UI:** The UI can be customized by modifying the XML layouts in the `app/src/main/res/layout` directory and the styles in the `app/src/main/res/values` directory.
+-   **Theming**: The app's theme can be customized in `res/values/themes.xml`.
+-   **SOS Behavior**: The SOS logic in `HomeViewModel` and related classes can be extended to add new alert mechanisms (e.g., sending emails, integrating with other services).
+-   **New Features**: The modular structure allows for adding new features by creating new packages under the `ui` and `data` directories.

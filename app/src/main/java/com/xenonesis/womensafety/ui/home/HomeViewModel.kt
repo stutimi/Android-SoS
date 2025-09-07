@@ -2,18 +2,22 @@ package com.xenonesis.womensafety.ui.home
 
 import android.content.Context
 import android.content.Intent
+import android.widget.Toast
 import androidx.lifecycle.LiveData
 import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.xenonesis.womensafety.data.model.Contact
 import com.xenonesis.womensafety.data.model.LocationData
+import com.xenonesis.womensafety.data.repository.ContactRepository
 import com.xenonesis.womensafety.data.repository.LocationRepository
 import com.xenonesis.womensafety.data.repository.SosRepository
 import kotlinx.coroutines.launch
 
 class HomeViewModel(
     private val sosRepository: SosRepository,
-    private val locationRepository: LocationRepository
+    private val locationRepository: LocationRepository,
+    private val contactRepository: ContactRepository
 ) : ViewModel() {
     
     private val _sosStatus = MutableLiveData<SosStatus>(SosStatus.Idle)
@@ -106,6 +110,73 @@ class HomeViewModel(
             val chooser = Intent.createChooser(shareIntent, "Share Location")
             chooser.flags = Intent.FLAG_ACTIVITY_NEW_TASK
             context.startActivity(chooser)
+        }
+    }
+    
+    fun sendLocationViaWhatsApp(context: Context) {
+        viewModelScope.launch {
+            try {
+                val location = _currentLocation.value
+                if (location != null) {
+                    // Get all contacts
+                    val contacts = contactRepository.getAllContacts().value ?: emptyList()
+                    
+                    // Filter out emergency service contacts
+                    val nonEmergencyContacts = contacts.filter { !it.isEmergencyService }
+                    
+                    if (nonEmergencyContacts.isNotEmpty()) {
+                        // Create a Google Maps link
+                        val mapLink = "https://www.google.com/maps?q=${location.latitude},${location.longitude}"
+                        
+                        // Create the message
+                        val message = "🚨 Emergency - My current location: $mapLink"
+                        
+                        // Create the intent to send the message via WhatsApp
+                        val sendIntent = Intent().apply {
+                            action = Intent.ACTION_SEND
+                            putExtra(Intent.EXTRA_TEXT, message)
+                            type = "text/plain"
+                            setPackage("com.whatsapp") // Specify WhatsApp package
+                        }
+                        
+                        sendIntent.flags = Intent.FLAG_ACTIVITY_NEW_TASK
+                        
+                        // Check if WhatsApp is installed
+                        if (sendIntent.resolveActivity(context.packageManager) != null) {
+                            context.startActivity(sendIntent)
+                        } else {
+                            // Fallback to general share if WhatsApp is not installed
+                            val shareIntent = Intent().apply {
+                                action = Intent.ACTION_SEND
+                                putExtra(Intent.EXTRA_TEXT, message)
+                                type = "text/plain"
+                            }
+                            val chooser = Intent.createChooser(shareIntent, "Send Location via")
+                            chooser.flags = Intent.FLAG_ACTIVITY_NEW_TASK
+                            context.startActivity(chooser)
+                        }
+                    } else {
+                        // Handle case where there are no contacts
+                        // Show a toast message
+                        (context as? androidx.appcompat.app.AppCompatActivity)?.runOnUiThread {
+                            Toast.makeText(context, "No saved contacts found", Toast.LENGTH_LONG).show()
+                        }
+                    }
+                } else {
+                    // Handle case where location is not available
+                    // Show a toast message
+                    (context as? androidx.appcompat.app.AppCompatActivity)?.runOnUiThread {
+                        Toast.makeText(context, "Location not available", Toast.LENGTH_LONG).show()
+                    }
+                }
+            } catch (e: Exception) {
+                // Handle any errors
+                e.printStackTrace()
+                // Show error message
+                (context as? androidx.appcompat.app.AppCompatActivity)?.runOnUiThread {
+                    Toast.makeText(context, "Failed to send location", Toast.LENGTH_LONG).show()
+                }
+            }
         }
     }
     

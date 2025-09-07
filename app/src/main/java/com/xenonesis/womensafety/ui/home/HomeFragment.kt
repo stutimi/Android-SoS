@@ -64,7 +64,7 @@ class HomeFragment : Fragment(), SensorEventListener {
         val application = requireActivity().application as SosApplication
         viewModel = ViewModelProvider(
             this,
-            HomeViewModelFactory(application.sosRepository, application.locationRepository)
+            HomeViewModelFactory(application.sosRepository, application.locationRepository, application.contactRepository)
         )[HomeViewModel::class.java]
         
         setupSensors()
@@ -95,7 +95,7 @@ class HomeFragment : Fragment(), SensorEventListener {
             }
             
             btnShareLocation.setOnClickListener {
-                shareCurrentLocation()
+                viewModel.sendLocationViaWhatsApp(requireContext())
             }
             
             // Maps functionality will be added when button exists in layout
@@ -226,19 +226,7 @@ class HomeFragment : Fragment(), SensorEventListener {
     }
     
     private fun shareCurrentLocation() {
-        lifecycleScope.launch {
-            val currentLocation = viewModel.currentLocation.value
-            if (currentLocation != null) {
-                MapsHelper.shareLocation(
-                    requireContext(),
-                    currentLocation.latitude,
-                    currentLocation.longitude,
-                    "🚨 Emergency - My current location"
-                )
-            } else {
-                viewModel.shareCurrentLocation(requireContext())
-            }
-        }
+        viewModel.sendLocationViaWhatsApp(requireContext())
     }
     
     private fun openMapsView() {
