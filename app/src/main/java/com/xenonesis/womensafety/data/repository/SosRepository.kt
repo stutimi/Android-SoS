@@ -6,6 +6,7 @@ import android.net.Uri
 import android.telephony.SmsManager
 import androidx.lifecycle.LiveData
 import com.xenonesis.womensafety.data.dao.SosEventDao
+import com.xenonesis.womensafety.data.firebase.FirebaseRepository
 import com.xenonesis.womensafety.data.model.Contact
 import com.xenonesis.womensafety.data.model.LocationData
 import com.xenonesis.womensafety.data.model.SosEvent
@@ -16,25 +17,25 @@ import kotlinx.coroutines.withContext
 class SosRepository(
     private val sosEventDao: SosEventDao,
     private val contactRepository: ContactRepository,
-    private val locationRepository: LocationRepository
+    private val locationRepository: LocationRepository,
+    private val firebaseRepository: FirebaseRepository
 ) {
-    
+
     fun getAllSosEvents(): LiveData<List<SosEvent>> = sosEventDao.getAllSosEvents()
-    
+
     fun getActiveSosEvents(): LiveData<List<SosEvent>> = sosEventDao.getActiveSosEvents()
-    
+
     suspend fun triggerSos(
-        context: Context?,
         type: String,
         location: LocationData? = null
-    ): Long = withContext(Dispatchers.IO) {
-        
+    ): String = withContext(Dispatchers.IO) {
+
         val currentLocation = location ?: locationRepository.getCurrentLocation()
-        
+
         if (currentLocation == null) {
             throw Exception("Unable to get current location")
         }
-        
+
         // Create SOS event
         val sosEvent = SosEvent(
             type = type,
@@ -43,37 +44,19 @@ class SosRepository(
             address = currentLocation.address,
             timestamp = System.currentTimeMillis()
         )
-        
-        val eventId = sosEventDao.insertSosEvent(sosEvent)
-        
-        // Get emergency contacts
-        val contacts = contactRepository.getAllContacts().value ?: emptyList()
-        val primaryContacts = contacts.filter { it.isPrimary }
-        val allContacts = if (primaryContacts.isNotEmpty()) primaryContacts else contacts.take(3)
-        
-        // Send SMS to contacts
-        val notifiedContacts = mutableListOf<String>()
-        allContacts.forEach { contact ->
-            try {
-                sendEmergencySms(contact, currentLocation)
-                notifiedContacts.add(contact.id.toString())
-            } catch (e: Exception) {
-                // Log error but continue with other contacts
-            }
-        }
-        
-        // Update SOS event with notified contacts
-        val updatedEvent = sosEvent.copy(
-            id = eventId,
-            contactsNotified = notifiedContacts
-        )
-        sosEventDao.updateSosEvent(updatedEvent)
-        
+
+        // Create SOS event in Firestore
+        val eventId = firebaseRepository.createSosEvent(sosEvent)
+
+        // Save the event to the local database
+        val localEvent = sosEvent.copy(id = 0, contactsNotified = listOf(eventId)) // Using contactsNotified to store remote ID
+        sosEventDao.insertSosEvent(localEvent)
+
         eventId
     }
-    
-    suspend fun cancelSos(eventId: Long) = withContext(Dispatchers.IO) {
-        val event = sosEventDao.getSosEventById(eventId)
+
+    suspend fun cancelSos(eventId: String) = withContext(Dispatchers.IO) {
+        val event = sosEventDao.getSosEventById(eventId.toLong())
         event?.let {
             val updatedEvent = it.copy(
                 isResolved = true,
@@ -94,35 +77,6 @@ class SosRepository(
             )
             sosEventDao.updateSosEvent(updatedEvent)
         }
-    }
-    
-    private suspend fun sendEmergencySms(contact: Contact, location: LocationData) {
-        val message = createEmergencyMessage(location)
-        val smsManager = SmsManager.getDefault()
-        
-        try {
-            // For long messages, divide into parts
-            val parts = smsManager.divideMessage(message)
-            if (parts.size == 1) {
-                smsManager.sendTextMessage(contact.phoneNumber, null, message, null, null)
-            } else {
-                smsManager.sendMultipartTextMessage(contact.phoneNumber, null, parts, null, null)
-            }
-        } catch (e: Exception) {
-            throw Exception("Failed to send SMS to ${contact.name}: ${e.message}")
-        }
-    }
-    
-    private fun createEmergencyMessage(location: LocationData): String {
-        val mapsUrl = locationRepository.getGoogleMapsUrl(location.latitude, location.longitude)
-        val address = location.address ?: "Unknown location"
-        
-        return "🚨 EMERGENCY ALERT 🚨\n\n" +
-               "I need immediate help!\n\n" +
-               "Location: $address\n" +
-               "Maps: $mapsUrl\n\n" +
-               "Please contact me or call emergency services.\n" +
-               "Time: ${java.text.SimpleDateFormat("HH:mm:ss", java.util.Locale.getDefault()).format(java.util.Date())}"
     }
     
     fun makeEmergencyCall(context: Context, phoneNumber: String = Constants.EMERGENCY_NUMBER_POLICE) {

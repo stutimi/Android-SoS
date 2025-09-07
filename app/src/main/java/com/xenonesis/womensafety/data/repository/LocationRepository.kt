@@ -6,6 +6,9 @@ import android.content.pm.PackageManager
 import android.location.Address
 import android.location.Geocoder
 import android.location.Location
+import android.os.Build
+import kotlinx.coroutines.suspendCancellableCoroutine
+import kotlin.coroutines.resume
 import android.os.Looper
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.LiveData
@@ -110,34 +113,45 @@ class LocationRepository(private val context: Context) {
         _isTracking.value = false
     }
     
-    suspend fun getAddressFromLocation(latitude: Double, longitude: Double): String? = 
+    suspend fun getAddressFromLocation(latitude: Double, longitude: Double): String? =
         withContext(Dispatchers.IO) {
             try {
-                val addresses = geocoder.getFromLocation(latitude, longitude, 1)
-                addresses?.firstOrNull()?.let { address ->
-                    buildString {
-                        if (address.thoroughfare != null) {
-                            append(address.thoroughfare)
-                            if (address.subThoroughfare != null) {
-                                append(" ${address.subThoroughfare}")
-                            }
-                            append(", ")
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                    suspendCancellableCoroutine { continuation ->
+                        geocoder.getFromLocation(latitude, longitude, 1) { addresses ->
+                            continuation.resume(addresses.firstOrNull()?.toAddressString())
                         }
-                        if (address.locality != null) {
-                            append("${address.locality}, ")
-                        }
-                        if (address.adminArea != null) {
-                            append("${address.adminArea} ")
-                        }
-                        if (address.postalCode != null) {
-                            append(address.postalCode)
-                        }
-                    }.trim().removeSuffix(",")
+                    }
+                } else {
+                    @Suppress("DEPRECATION")
+                    val addresses = geocoder.getFromLocation(latitude, longitude, 1)
+                    addresses?.firstOrNull()?.toAddressString()
                 }
             } catch (e: Exception) {
                 null
             }
         }
+
+    private fun Address.toAddressString(): String {
+        return buildString {
+            if (thoroughfare != null) {
+                append(thoroughfare)
+                if (subThoroughfare != null) {
+                    append(" ${subThoroughfare}")
+                }
+                append(", ")
+            }
+            if (locality != null) {
+                append("${locality}, ")
+            }
+            if (adminArea != null) {
+                append("${adminArea} ")
+            }
+            if (postalCode != null) {
+                append(postalCode)
+            }
+        }.trim().removeSuffix(",")
+    }
     
     fun calculateDistance(
         lat1: Double, lon1: Double,

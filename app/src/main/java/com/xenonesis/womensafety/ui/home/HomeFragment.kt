@@ -159,8 +159,7 @@ class HomeFragment : Fragment(), SensorEventListener {
                     if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
                         it.vibrate(VibrationEffect.createOneShot(100, VibrationEffect.DEFAULT_AMPLITUDE))
                     } else {
-                        @Suppress("DEPRECATION")
-                        it.vibrate(100)
+                        it.vibrate(VibrationEffect.createOneShot(100, VibrationEffect.DEFAULT_AMPLITUDE))
                     }
                 }
             }
@@ -200,9 +199,8 @@ class HomeFragment : Fragment(), SensorEventListener {
                         val pattern = longArrayOf(0, 500, 200, 500, 200, 500)
                         it.vibrate(VibrationEffect.createWaveform(pattern, -1))
                     } else {
-                        @Suppress("DEPRECATION")
                         val pattern = longArrayOf(0, 500, 200, 500, 200, 500)
-                        it.vibrate(pattern, -1)
+                        it.vibrate(VibrationEffect.createWaveform(pattern, -1))
                     }
                 }
                 

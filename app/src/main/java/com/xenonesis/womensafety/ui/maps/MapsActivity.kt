@@ -330,7 +330,7 @@ class MapsActivity : AppCompatActivity(), OnMapReadyCallback {
     }
 
     override fun onSupportNavigateUp(): Boolean {
-        onBackPressed()
+        super.onBackPressedDispatcher.onBackPressed()
         return true
     }
 }

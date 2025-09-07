@@ -22,7 +22,7 @@ class HomeViewModel(
     private val _currentLocation = MutableLiveData<LocationData?>()
     val currentLocation: LiveData<LocationData?> = _currentLocation
     
-    private var activeSosEventId: Long? = null
+    private var activeSosEventId: String? = null
     
     sealed class SosStatus {
         object Idle : SosStatus()
@@ -57,7 +57,6 @@ class HomeViewModel(
         viewModelScope.launch {
             try {
                 val eventId = sosRepository.triggerSos(
-                    context = null,
                     type = type,
                     location = _currentLocation.value
                 )

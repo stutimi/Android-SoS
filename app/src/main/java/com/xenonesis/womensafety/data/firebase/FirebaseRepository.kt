@@ -6,6 +6,8 @@ import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.ListenerRegistration
 import com.google.firebase.firestore.Query
 import com.google.firebase.messaging.FirebaseMessaging
+import com.xenonesis.womensafety.data.model.Invitation
+import com.xenonesis.womensafety.data.model.SosEvent
 import com.xenonesis.womensafety.utils.Constants
 import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.flow.Flow
@@ -23,6 +25,7 @@ class FirebaseRepository {
     private val sosEventsCollection = firestore.collection(Constants.COLLECTION_SOS_EVENTS)
     private val communityAlertsCollection = firestore.collection(Constants.COLLECTION_COMMUNITY_ALERTS)
     private val locationsCollection = firestore.collection(Constants.COLLECTION_LOCATIONS)
+    private val invitationsCollection = firestore.collection("invitations")
     
     // User Management
     suspend fun createUser(user: FirebaseUser): Result<String> {
@@ -57,7 +60,28 @@ class FirebaseRepository {
     }
     
     // SOS Events
-    suspend fun createSosEvent(sosEvent: FirebaseSosEvent): Result<String> {
+    suspend fun createSosEvent(sosEvent: SosEvent): String {
+        val firebaseSosEvent = FirebaseSosEvent(
+            userId = auth.currentUser?.uid ?: "",
+            type = sosEvent.type,
+            latitude = sosEvent.latitude,
+            longitude = sosEvent.longitude,
+            address = sosEvent.address,
+            timestamp = Date(sosEvent.timestamp),
+            isResolved = sosEvent.isResolved,
+            resolvedAt = sosEvent.resolvedAt?.let { Date(it) },
+            notes = sosEvent.notes,
+            contactsNotified = sosEvent.contactsNotified
+        )
+        val result = createSosEvent(firebaseSosEvent)
+        if (result.isSuccess) {
+            return result.getOrThrow()
+        } else {
+            throw result.exceptionOrNull()!!
+        }
+    }
+
+    private suspend fun createSosEvent(sosEvent: FirebaseSosEvent): Result<String> {
         return try {
             val docRef = sosEventsCollection.add(sosEvent).await()
             
@@ -101,6 +125,17 @@ class FirebaseRepository {
         awaitClose { listener.remove() }
     }
     
+    // Invitations
+    suspend fun createInvitation(invitation: Invitation): Result<String> {
+        return try {
+            val docRef = invitationsCollection.add(invitation).await()
+            Result.success(docRef.id)
+        } catch (e: Exception) {
+            Log.e("FirebaseRepository", "Error creating invitation", e)
+            Result.failure(e)
+        }
+    }
+
     // Community Alerts
     suspend fun createCommunityAlert(alert: FirebaseCommunityAlert): Result<String> {
         return try {

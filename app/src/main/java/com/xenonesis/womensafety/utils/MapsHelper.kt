@@ -6,6 +6,8 @@ import android.location.Address
 import android.location.Geocoder
 import android.location.Location
 import android.net.Uri
+import kotlinx.coroutines.suspendCancellableCoroutine
+import kotlin.coroutines.resume
 import android.util.Log
 import com.google.android.gms.maps.model.LatLng
 import com.xenonesis.womensafety.ui.maps.MapsActivity
@@ -159,18 +161,18 @@ object MapsHelper {
         latitude: Double,
         longitude: Double
     ): String? = withContext(Dispatchers.IO) {
+        val geocoder = Geocoder(context, Locale.getDefault())
         try {
-            val geocoder = Geocoder(context, Locale.getDefault())
-            val addresses: List<Address>? = geocoder.getFromLocation(latitude, longitude, 1)
-            
-            addresses?.firstOrNull()?.let { address ->
-                buildString {
-                    if (address.featureName != null) append("${address.featureName}, ")
-                    if (address.thoroughfare != null) append("${address.thoroughfare}, ")
-                    if (address.locality != null) append("${address.locality}, ")
-                    if (address.adminArea != null) append("${address.adminArea}, ")
-                    if (address.countryName != null) append(address.countryName)
-                }.trimEnd(',', ' ')
+            if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.TIRAMISU) {
+                suspendCancellableCoroutine { continuation ->
+                    geocoder.getFromLocation(latitude, longitude, 1) { addresses ->
+                        continuation.resume(addresses.firstOrNull()?.toAddressString())
+                    }
+                }
+            } else {
+                @Suppress("DEPRECATION")
+                val addresses = geocoder.getFromLocation(latitude, longitude, 1)
+                addresses?.firstOrNull()?.toAddressString()
             }
         } catch (e: Exception) {
             Log.e(TAG, "Error getting address from location", e)
@@ -185,17 +187,33 @@ object MapsHelper {
         context: Context,
         address: String
     ): LatLng? = withContext(Dispatchers.IO) {
+        val geocoder = Geocoder(context, Locale.getDefault())
         try {
-            val geocoder = Geocoder(context, Locale.getDefault())
-            val addresses: List<Address>? = geocoder.getFromLocationName(address, 1)
-            
-            addresses?.firstOrNull()?.let { addr ->
-                LatLng(addr.latitude, addr.longitude)
+            if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.TIRAMISU) {
+                suspendCancellableCoroutine { continuation ->
+                    geocoder.getFromLocationName(address, 1) { addresses ->
+                        continuation.resume(addresses.firstOrNull()?.let { LatLng(it.latitude, it.longitude) })
+                    }
+                }
+            } else {
+                @Suppress("DEPRECATION")
+                val addresses = geocoder.getFromLocationName(address, 1)
+                addresses?.firstOrNull()?.let { LatLng(it.latitude, it.longitude) }
             }
         } catch (e: Exception) {
             Log.e(TAG, "Error getting location from address", e)
             null
         }
+    }
+
+    private fun Address.toAddressString(): String {
+        return buildString {
+            if (featureName != null) append("$featureName, ")
+            if (thoroughfare != null) append("$thoroughfare, ")
+            if (locality != null) append("$locality, ")
+            if (adminArea != null) append("$adminArea, ")
+            if (countryName != null) append(countryName)
+        }.trimEnd(',', ' ')
     }
     
     /**

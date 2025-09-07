@@ -1,12 +1,19 @@
 package com.xenonesis.womensafety.data.repository
 
 import androidx.lifecycle.LiveData
+import com.google.firebase.auth.FirebaseAuth
 import com.xenonesis.womensafety.data.dao.ContactDao
 import com.xenonesis.womensafety.data.model.Contact
+import com.xenonesis.womensafety.data.model.Invitation
+import com.xenonesis.womensafety.data.firebase.FirebaseRepository
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
-class ContactRepository(private val contactDao: ContactDao) {
+class ContactRepository(
+    private val contactDao: ContactDao,
+    private val firebaseRepository: FirebaseRepository,
+    private val auth: FirebaseAuth
+) {
     
     fun getAllContacts(): LiveData<List<Contact>> = contactDao.getAllContacts()
     
@@ -21,7 +28,15 @@ class ContactRepository(private val contactDao: ContactDao) {
     }
     
     suspend fun insertContact(contact: Contact): Long = withContext(Dispatchers.IO) {
-        contactDao.insertContact(contact)
+        val contactId = contactDao.insertContact(contact)
+        if (!contact.isEmergencyService) {
+            val invitation = Invitation(
+                invitedBy = auth.currentUser?.uid ?: "",
+                inviteePhone = contact.phoneNumber
+            )
+            firebaseRepository.createInvitation(invitation)
+        }
+        contactId
     }
     
     suspend fun updateContact(contact: Contact) = withContext(Dispatchers.IO) {

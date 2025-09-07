@@ -9,6 +9,7 @@ import androidx.work.Configuration
 import androidx.work.WorkManager
 import com.google.firebase.FirebaseApp
 import com.google.firebase.auth.FirebaseAuth
+import com.google.firebase.firestore.FirebaseFirestoreSettings
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.messaging.FirebaseMessaging
 import com.xenonesis.womensafety.data.database.SosDatabase
@@ -25,9 +26,9 @@ class SosApplication : Application() {
     val database by lazy { SosDatabase.getDatabase(this) }
     
     // Local Repositories
-    val contactRepository by lazy { ContactRepository(database.contactDao()) }
+    val contactRepository by lazy { ContactRepository(database.contactDao(), firebaseRepository, FirebaseAuth.getInstance()) }
     val locationRepository by lazy { LocationRepository(this) }
-    val sosRepository by lazy { SosRepository(database.sosEventDao(), contactRepository, locationRepository) }
+    val sosRepository by lazy { SosRepository(database.sosEventDao(), contactRepository, locationRepository, firebaseRepository) }
     
     // Firebase Repositories
     val firebaseRepository by lazy { FirebaseRepository() }
@@ -67,12 +68,9 @@ class SosApplication : Application() {
             FirebaseApp.initializeApp(this)
             
             // Enable Firestore offline persistence
-            FirebaseFirestore.getInstance().apply {
-                firestoreSettings = com.google.firebase.firestore.FirebaseFirestoreSettings.Builder()
-                    .setPersistenceEnabled(true)
-                    .setCacheSizeBytes(com.google.firebase.firestore.FirebaseFirestoreSettings.CACHE_SIZE_UNLIMITED)
-                    .build()
-            }
+            val firestore = FirebaseFirestore.getInstance()
+            val settings = FirebaseFirestoreSettings.Builder(firestore.firestoreSettings).build()
+            firestore.firestoreSettings = settings
             
             // Set Firebase Auth language
             FirebaseAuth.getInstance().setLanguageCode("en")
